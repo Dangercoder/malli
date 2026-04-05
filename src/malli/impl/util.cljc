@@ -6,7 +6,7 @@
 
 (def ^:const +max-size+ #?(:clj Long/MAX_VALUE, :cljr Int64/MaxValue, :cljs (.-MAX_VALUE js/Number)))
 
-(defn -entry [k v] #?(:clj (MapEntry. k v), :cljs (MapEntry. k v nil)))
+(defn -entry [k v] #?(:clj (MapEntry. k v), :cljr (MapEntry. k v), :cljs (MapEntry. k v nil)))
 
 (defn -invalid? [x] #?(:clj (identical? x :malli.core/invalid), :cljr (identical? x :malli.core/invalid), :cljs (keyword-identical? x :malli.core/invalid)))
 (defn -map-valid [f v] (if (-invalid? v) v (f v)))
@@ -29,6 +29,7 @@
                          (loop [n 0] (when (.hasNext iter) (aset oa n (f (.next iter))) (recur (unchecked-inc n))))
                          #?(:bb  (vec oa)
                             :clj (LazilyPersistentVector/createOwning oa))) []))
+             :cljr (into [] (map f) os)
              :cljs (into [] (map f) os))))
 
 #?(:clj
@@ -67,10 +68,12 @@
 
 (def ^{:arglists '([[& preds]])} -every-pred
   #?(:clj  (-pred-composer and 16)
+     :cljr (fn [preds] (fn [m] (boolean (reduce #(or (%2 m) (reduced false)) true preds))))
      :cljs (fn [preds] (fn [m] (boolean (reduce #(or (%2 m) (reduced false)) true preds))))))
 
 (def ^{:arglists '([[& preds]])} -some-pred
   #?(:clj  (-pred-composer or 16)
+     :cljr (fn [preds] (fn [x] (boolean (some #(% x) preds))))
      :cljs (fn [preds] (fn [x] (boolean (some #(% x) preds))))))
 
 (defmacro predicate-schemas* [var-syms]
