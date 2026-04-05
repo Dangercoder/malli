@@ -1,0 +1,4 @@
+(ns borkdude.dynaload)
+
+(defn dynaload [sym & [{:keys [default]}]]
+  (delay (or (try (requiring-resolve sym) (catch Exception _ nil)) default)))

@@ -5,7 +5,7 @@
 (def -preferences (-> [:int 'integer? :double :float 'number? :qualified-keyword :keyword :symbol :string :boolean :uuid 'inst?]
                       (reverse) (zipmap (drop 1 (range))) (assoc 'any? -14 'some? -13, :or -12, :and -11, :any -10, :some -9)))
 
-(defn -safe? [f & args] (try (apply f args) (catch #?(:clj Exception, :cljs js/Error) _ false)))
+(defn -safe? [f & args] (try (apply f args) (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) _ false)))
 
 (defrecord Hinted [value hint])
 (defn -hinted [x hint] (->Hinted x hint))

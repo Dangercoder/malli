@@ -36,6 +36,7 @@
   (:refer-clojure :exclude [+ * repeat cat])
   (:require [malli.impl.util :as miu])
   #?(:bb  (:import [java.util ArrayDeque])
+     :cljr (:import [clojure.lang Util Murmur3])
      :clj (:import [java.util ArrayDeque]
                    [clojure.lang Util Murmur3]
                    [java.lang.reflect Array])))
@@ -459,9 +460,9 @@
 
 ;;;; # Shared Drivers
 
-(defn- make-stack [] #?(:clj (ArrayDeque.), :cljs #js []))
+(defn- make-stack [] #?(:clj (ArrayDeque.) :cljr (|System.Collections.Generic.Stack`1[System.Object]|.) :cljs #js []))
 
-(defn- empty-stack? [^ArrayDeque stack] #?(:clj (.isEmpty stack), :cljs (zero? (alength stack))))
+(defn- empty-stack? [stack] #?(:clj (.isEmpty ^ArrayDeque stack) :cljr (zero? (.Count ^|System.Collections.Generic.Stack`1[System.Object]| stack)) :cljs (zero? (alength stack))))
 
 (defprotocol ^:private ICache
   (ensure-cached! [cache f pos regs]))
@@ -474,6 +475,7 @@
 ;; Uses quadratic probing with power-of-two sizes and triangular numbers, what a nice trick!
 (deftype Cache
   #?(:clj  [^:unsynchronized-mutable ^"[Ljava.lang.Object;" values, ^:unsynchronized-mutable ^long size]
+     :cljr [^:unsynchronized-mutable ^objects values, ^:unsynchronized-mutable ^long size]
      :cljs [^:mutable values, ^:mutable size])
   ICache
   (ensure-cached! [_ f pos regs]
@@ -482,6 +484,7 @@
       (let [capacity* (bit-shift-left (alength values) 1)
             ^objects values* #?(:bb   (object-array capacity*)
                                 :clj (Array/newInstance Object capacity*)
+                                :cljr (object-array capacity*)
                                 :cljs (object-array capacity*))
             max-index (unchecked-dec capacity*)]
 
@@ -503,10 +506,12 @@
 
     (let [capacity (alength values)
           max-index (unchecked-dec capacity)
-          #?@(:clj [pos (.longValue ^Long pos)])
+          #?@(:clj [pos (.longValue ^Long pos)]
+              :cljr [pos (long pos)])
           ;; Unfortunately `hash-combine` hashes its second argument on clj and neither argument on cljs:
           h #?(:bb   (-> (hash f) (hash-combine pos) (hash-combine regs))
                :clj (-> (.hashCode ^Object f) (Util/hashCombine (Murmur3/hashLong pos)) (Util/hashCombine (Util/hash regs)))
+               :cljr (-> (.GetHashCode ^Object f) (Util/hashCombine (Murmur3/hashLong pos)) (Util/hashCombine (Util/hash regs)))
                :cljs (-> (hash f) (hash-combine (hash pos)) (hash-combine (hash regs))))]
       (loop [i (bit-and h max-index), collisions 0]
         (if-some [^CacheEntry entry (aget values i)]
@@ -528,6 +533,7 @@
 
 (deftype ^:private CheckDriver
   #?(:clj  [^:unsynchronized-mutable ^boolean success, ^ArrayDeque stack, cache]
+     :cljr [^:unsynchronized-mutable ^Boolean success, stack, cache]
      :cljs [^:mutable success, stack, cache])
 
   Driver
@@ -543,6 +549,8 @@
 
 (deftype ^:private ParseDriver
   #?(:clj  [^:unsynchronized-mutable ^boolean success, ^ArrayDeque stack, cache
+            ^:unsynchronized-mutable result]
+     :cljr [^:unsynchronized-mutable ^Boolean success, stack, cache,
             ^:unsynchronized-mutable result]
      :cljs [^:mutable success, stack, cache, ^:mutable result])
 
@@ -586,6 +594,8 @@
 
 (deftype ^:private ExplanationDriver
   #?(:clj  [^:unsynchronized-mutable ^boolean success, ^ArrayDeque stack, cache
+            in, ^:unsynchronized-mutable errors-max-pos, ^:unsynchronized-mutable errors]
+     :cljr [^:unsynchronized-mutable ^Boolean success, stack, cache,
             in, ^:unsynchronized-mutable errors-max-pos, ^:unsynchronized-mutable errors]
      :cljs [^:mutable success, stack, cache, in, ^:mutable errors-max-pos, ^:mutable errors])
 

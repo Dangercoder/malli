@@ -40,7 +40,7 @@
 
   (visit-unknown [this x]
     (or (and unknown (try (some->> (unknown x) (fipp.visit/visit this))
-                          (catch #?(:clj Exception, :cljs js/Error) _)))
+                          (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) _)))
         (fipp.visit/visit this (fipp.ednize/edn x))))
 
   (visit-nil [this]

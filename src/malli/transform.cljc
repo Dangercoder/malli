@@ -51,7 +51,7 @@
 
     :else (m/-fail! ::invalid-transformer {:value ?interceptor})))
 
-(defn -safe [f] #(try (f %) (catch #?(:clj Exception, :cljs js/Error) _ %)))
+(defn -safe [f] #(try (f %) (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) _ %)))
 
 ;;
 ;; from strings
@@ -66,7 +66,7 @@
                       (> x' js/Number.MAX_SAFE_INTEGER) x
                       (< x' js/Number.MIN_SAFE_INTEGER) x
                       :else x')))
-         (catch #?(:clj Exception, :cljs js/Error) _ x))
+         (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) _ x))
     x))
 
 (defn parse-float [s]
@@ -155,7 +155,7 @@
   (if (string? x)
     (try #?(:clj  (Date/from (Instant/from (.parse +string->date-format+ x)))
             :cljs (js/Date. (.getTime (goog.date.UtcDateTime/fromIsoString x))))
-         (catch #?(:clj Exception, :cljs js/Error) _ x))
+         (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) _ x))
     x))
 
 #?(:clj
@@ -189,7 +189,7 @@
   (if (inst? x)
     (try #?(:clj  (.format +date->string-format+ (Instant/ofEpochMilli (inst-ms x)))
             :cljs (.toISOString x))
-         (catch #?(:clj Exception, :cljs js/Error) _ x))
+         (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) _ x))
     x))
 
 (defn -transform-map-keys

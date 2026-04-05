@@ -140,7 +140,7 @@
 (defmethod v/-format :malli.edn/var-parsing-not-supported [_ {:keys [string var]} printer]
   (let [parse (fn [string]
                 (try (edn/-parse-string string {:regex true, :fn true, :var edn/-var-symbol})
-                     (catch #?(:clj Exception, :cljs js/Error) _ string)))]
+                     (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) _ string)))]
     {:title "Deserialization Error"
      :body [:group
             (v/-block "Var" (v/-visit var printer) printer) :break :break

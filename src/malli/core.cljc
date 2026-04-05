@@ -7,7 +7,9 @@
             [malli.impl.util :as miu]
             [malli.registry :as mr]
             [malli.sci :as ms])
-  #?(:clj (:import #?(:bb  (clojure.lang Associative IPersistentCollection MapEntry IPersistentVector PersistentArrayMap)
+  #?(:cljr (:import (clojure.lang Associative IPersistentCollection MapEntry IPersistentVector PersistentArrayMap)
+                    (System.Text.RegularExpressions Regex))
+     :clj (:import #?(:bb  (clojure.lang Associative IPersistentCollection MapEntry IPersistentVector PersistentArrayMap)
                       :clj (clojure.lang Associative IPersistentCollection MapEntry IPersistentVector LazilyPersistentVector PersistentArrayMap))
                    (java.util.concurrent.atomic AtomicReference)
                    (java.util.regex Pattern))))
@@ -99,14 +101,14 @@
 (defprotocol ParserInfo
   (-parser-info [this opts]))
 
-(defn -ref-schema? [x] (#?(:clj instance?, :cljs implements?) malli.core.RefSchema x))
-(defn -entry-parser? [x] (#?(:clj instance?, :cljs implements?) malli.core.EntryParser x))
-(defn -entry-schema? [x] (#?(:clj instance?, :cljs implements?) malli.core.EntrySchema x))
-(defn -cached? [x] (#?(:clj instance?, :cljs implements?) malli.core.Cached x))
-(defn -ast? [x] (#?(:clj instance?, :cljs implements?) malli.core.AST x))
-(defn -transformer? [x] (#?(:clj instance?, :cljs implements?) malli.core.Transformer x))
+(defn -ref-schema? [x] (#?(:clj instance?, :cljr instance?, :cljs implements?) malli.core.RefSchema x))
+(defn -entry-parser? [x] (#?(:clj instance?, :cljr instance?, :cljs implements?) malli.core.EntryParser x))
+(defn -entry-schema? [x] (#?(:clj instance?, :cljr instance?, :cljs implements?) malli.core.EntrySchema x))
+(defn -cached? [x] (#?(:clj instance?, :cljr instance?, :cljs implements?) malli.core.Cached x))
+(defn -ast? [x] (#?(:clj instance?, :cljr instance?, :cljs implements?) malli.core.AST x))
+(defn -transformer? [x] (#?(:clj instance?, :cljr instance?, :cljs implements?) malli.core.Transformer x))
 
-(extend-type #?(:clj Object, :cljs default)
+(extend-type #?(:clj Object, :cljr Object, :cljs default)
   FunctionSchema
   (-function-schema? [_] false)
   (-function-info [_])
@@ -155,6 +157,8 @@
 
 #?(:clj (defmethod print-method ::into-schema [v ^java.io.Writer w] (.write w (str "#IntoSchema {:type " (pr-str (-type ^IntoSchema v)) "}"))))
 #?(:clj (defmethod print-method ::schema [v ^java.io.Writer w] (.write w (pr-str (-form ^Schema v)))))
+#?(:cljr (defmethod print-method ::into-schema [v ^System.IO.TextWriter w] (.Write w (str "#IntoSchema {:type " (pr-str (-type ^IntoSchema v)) "}"))))
+#?(:cljr (defmethod print-method ::schema [v ^System.IO.TextWriter w] (.Write w (pr-str (-form ^Schema v)))))
 #?(:cljs (defn -pr-writer-into-schema [obj writer opts]
            (-write writer "#IntoSchema ")
            (-pr-writer {:type (-type ^IntoSchema obj)} writer opts)))
@@ -206,7 +210,7 @@
   ([type] (-fail! type nil))
   ([type data] (throw (-exception type data))))
 
-(defn -safe-pred [f] #(try (boolean (f %)) (catch #?(:clj Exception, :cljs js/Error) _ false)))
+(defn -safe-pred [f] #(try (boolean (f %)) (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) _ false)))
 
 (defn -keyword->string [x]
   (if (keyword? x)
@@ -1465,14 +1469,14 @@
       (counted? x)
       (indexed? x)
       ;; note: js/Object not ISeqable
-      #?(:clj (instance? java.util.Map x))
+      #?(:clj (instance? java.util.Map x) :cljr (instance? System.Collections.IDictionary x))
       ;; many Seq's are List's, so just pick some popular classes
       #?@(:bb  []
           :clj [(instance? java.util.AbstractList x)
                 (instance? java.util.Vector x)])
-      #?(:clj  (instance? CharSequence x)
+      #?(:clj  (instance? CharSequence x) :cljr (instance? String x)
          :cljs (string? x))
-      #?(:clj  (.isArray (class x))
+      #?(:clj  (.isArray (class x)) :cljr (.IsArray (type x))
          :cljs (identical? js/Array (c/type x)))))
 
 (defn -collection-schema [props]
@@ -1744,7 +1748,7 @@
                 (if-not (matches? x)
                   (conj acc (miu/-error path in this x))
                   acc)
-                (catch #?(:clj Exception, :cljs js/Error) e
+                (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) e
                   (conj acc (miu/-error path in this x (:type (ex-data e))))))))
           (-transformer [this transformer method options]
             (-intercepting (-value-transformer transformer this method options)))
@@ -1793,7 +1797,7 @@
                 (if-not (f x)
                   (conj acc (miu/-error path in this x))
                   acc)
-                (catch #?(:clj Exception, :cljs js/Error) e
+                (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) e
                   (conj acc (miu/-error path in this x (:type (ex-data e))))))))
           (-parser [this] (-simple-parser this))
           (-unparser [this] (-parser this))
@@ -2511,7 +2515,7 @@
 
 (defn into-schema?
   "Checks if x is a IntoSchema instance"
-  [x] (#?(:clj instance?, :cljs implements?) malli.core.IntoSchema x))
+  [x] (#?(:clj instance?, :cljr instance?, :cljs implements?) malli.core.IntoSchema x))
 
 (defn into-schema
   "Creates a Schema instance out of type, optional properties map and children"
@@ -2562,7 +2566,7 @@
 
 (defn schema?
   "Checks if x is a Schema instance"
-  [x] (#?(:clj instance?, :cljs implements?) malli.core.Schema x))
+  [x] (#?(:clj instance?, :cljr instance?, :cljs implements?) malli.core.Schema x))
 
 (defn schema
   "Creates a Schema object from any of the following:
@@ -2577,10 +2581,10 @@
    (cond
      (schema? ?schema) ?schema
      (into-schema? ?schema) (-into-schema ?schema nil nil options)
-     (vector? ?schema) (let [v #?(:clj ^IPersistentVector ?schema, :cljs ?schema)
-                             t (-lookup! #?(:clj (.nth v 0), :cljs (nth v 0)) v into-schema? true options)
-                             n #?(:bb (count v) :clj (.count v), :cljs (count v))
-                             ?p (when (> n 1) #?(:clj (.nth v 1), :cljs (nth v 1)))]
+     (vector? ?schema) (let [v #?(:clj ^IPersistentVector ?schema, :cljr ?schema, :cljs ?schema)
+                             t (-lookup! #?(:clj (.nth v 0), :cljr (nth v 0), :cljs (nth v 0)) v into-schema? true options)
+                             n #?(:bb (count v) :clj (.count v), :cljr (count v), :cljs (count v))
+                             ?p (when (> n 1) #?(:clj (.nth v 1), :cljr (nth v 1), :cljs (nth v 1)))]
                          (if (or (nil? ?p) (map? ?p))
                            (into-schema t ?p (when (< 2 n) (subvec ?schema 2 n)) options)
                            (into-schema t nil (when (< 1 n) (subvec ?schema 1 n)) options)))
@@ -2940,7 +2944,7 @@
         (-register-var 'empty? empty? -safe-empty?))))
 
 (defn class-schemas []
-  {#?(:clj  Pattern,
+  {#?(:clj  Pattern, :cljr System.Text.RegularExpressions.Regex,
       ;; closure will complain if you reference the global RegExp object.
       :cljs (c/type #"")) (-re-schema true)})
 
@@ -3100,7 +3104,7 @@
   ([ns name ?schema data key f]
    (try
      (swap! -function-schemas* assoc-in [key ns name] (merge data {:schema (f ?schema), :ns ns, :name name}))
-     (catch #?(:clj Throwable :cljs :default) ex
+     (catch #?(:clj Throwable :cljr Exception :cljs :default) ex
        (-fail! ::register-function-schema {:ns ns, :name name, :schema ?schema, :data data, :key key, :exception ex})))))
 
 #?(:clj

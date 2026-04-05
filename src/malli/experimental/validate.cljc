@@ -32,7 +32,7 @@
                 (if-let [errors (seq (f x))]
                   (into acc (map (fn [{:keys [in type value]}] (miu/-error path (into in0 in) this value type))) errors)
                   acc)
-                (catch #?(:clj Exception, :cljs js/Error) e
+                (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) e
                   (conj acc (miu/-error path in0 this x (:type (ex-data e))))))))
           (-parser [this] (m/-simple-parser this))
           (-unparser [this] (m/-parser this))

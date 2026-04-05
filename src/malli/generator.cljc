@@ -527,7 +527,7 @@
   ([?schema] (function-checker ?schema nil))
   ([?schema {::keys [=>iterations] :or {=>iterations 100} :as options}]
    (let [schema (m/schema ?schema options)
-         -try (fn [f] (try [(f) true] (catch #?(:clj Exception, :cljs js/Error) e [e false])))
+         -try (fn [f] (try [(f) true] (catch #?(:clj Exception, :cljr Exception, :cljs js/Error) e [e false])))
          check (fn [schema]
                  (let [{:keys [input output guard]} (m/-function-info schema)
                        input-generator (generator input options)

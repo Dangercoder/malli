@@ -1,13 +1,14 @@
 (ns malli.impl.util
-  #?(:clj (:import #?(:bb  (clojure.lang MapEntry)
+  #?(:cljr (:import (clojure.lang MapEntry))
+     :clj (:import #?(:bb  (clojure.lang MapEntry)
                       :clj (clojure.lang MapEntry LazilyPersistentVector))
                    (java.util.concurrent TimeoutException TimeUnit FutureTask))))
 
-(def ^:const +max-size+ #?(:clj Long/MAX_VALUE, :cljs (.-MAX_VALUE js/Number)))
+(def ^:const +max-size+ #?(:clj Long/MAX_VALUE, :cljr Int64/MaxValue, :cljs (.-MAX_VALUE js/Number)))
 
 (defn -entry [k v] #?(:clj (MapEntry. k v), :cljs (MapEntry. k v nil)))
 
-(defn -invalid? [x] #?(:clj (identical? x :malli.core/invalid), :cljs (keyword-identical? x :malli.core/invalid)))
+(defn -invalid? [x] #?(:clj (identical? x :malli.core/invalid), :cljr (identical? x :malli.core/invalid), :cljs (keyword-identical? x :malli.core/invalid)))
 (defn -map-valid [f v] (if (-invalid? v) v (f v)))
 (defn -map-invalid [f v] (if (-invalid? v) (f v) v))
 (defn -reduce-kv-valid [f init coll] (reduce-kv (comp #(-map-invalid reduced %) f) init coll))
