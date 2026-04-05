@@ -549,17 +549,20 @@
         (-fail! ::invalid-entry {:entry e})))))
 
 (defn -eager-entry-parser [children props options]
-  (letfn [(-vec [^objects arr] #?(:bb (vec arr) :clj (LazilyPersistentVector/createOwning arr), :cljs (vec arr)))
+  (letfn [(-vec [^objects arr] #?(:bb (vec arr) :clj (LazilyPersistentVector/createOwning arr), :cljr (vec arr), :cljs (vec arr)))
           (-map [^objects arr] #?(:bb   (let [m (apply array-map arr)]
                                           (when-not (= (* 2 (count m)) (count arr))
                                             (-fail! ::duplicate-keys {:arr arr})) m)
                                   :clj (try (PersistentArrayMap/createWithCheck arr)
                                             (catch Exception _ (-fail! ::duplicate-keys {:arr arr})))
+                                  :cljr (try (PersistentArrayMap/createWithCheck arr)
+                                             (catch Exception _ (-fail! ::duplicate-keys {:arr arr})))
                                   :cljs (let [m (apply array-map arr)]
                                           (when-not (= (* 2 (count m)) (count arr))
                                             (-fail! ::duplicate-keys {:arr arr})) m)))
           (-arange [^objects arr to]
            #?(:clj (let [-arr (object-array to)] (System/arraycopy arr 0 -arr 0 to) -arr)
+              :cljr (let [-arr (object-array to)] (System.Array/Copy arr -arr to) -arr)
               :cljs (.slice arr 0 to)))]
     (let [{:keys [naked-keys lazy-refs]} props
           ca (object-array children)
@@ -636,6 +639,10 @@
                                    (let [val (.valAt x k not-found)]
                                      (if (identical? val not-found)
                                        x (.assoc x k (t val)))))) (rseq ts))))
+     :cljr (fn [x] (reduce (fn child-transformer [m [k t]]
+                             (if-let [entry (find m k)]
+                               (assoc m k (t (val entry)))
+                               m)) x ts))
      :cljs (fn [x] (reduce (fn child-transformer [m [k t]]
                              (if-let [entry (find m k)]
                                (assoc m k (t (val entry)))
@@ -650,6 +657,7 @@
                        (if (.hasNext i)
                          (recur (.cons x (t (.next i))))
                          x))))
+     :cljr (fn [x] (into (when x empty) (map t) x))
      :cljs (fn [x] (into (when x empty) (map t) x))))
 
 (defn -or-transformer [this transformer child-schemas method options]
@@ -1290,6 +1298,7 @@
                                                           (if (identical? val not-found)
                                                             default
                                                             (valid? val)))))
+                                              :cljr (fn [m] (if-let [map-entry (find m key)] (valid? (val map-entry)) default))
                                               :cljs (fn [m] (if-let [map-entry (find m key)] (valid? (val map-entry)) default)))))
                                        @explicit-children)
                                 default-validator
@@ -1731,7 +1740,7 @@
       (-check-children! :re properties children 1 1)
       (let [children (vec children)
             re (re-pattern child)
-            matches? #(and #?(:clj (instance? CharSequence %), :cljs (string? %))
+            matches? #(and #?(:clj (instance? CharSequence %), :cljr (string? %), :cljs (string? %))
                            (re-find re %))
             form (delay (if class? re (-simple-form parent properties children identity options)))
             cache (-create-cache options)]

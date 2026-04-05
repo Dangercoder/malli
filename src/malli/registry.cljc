@@ -18,12 +18,11 @@
 
 (defn fast-registry [m]
   (let [fm #?(:clj (doto (HashMap. 1024 0.25) (.putAll ^Map m))
-              :cljr (let [d (System.Collections.Hashtable. (count m))]
-                      (doseq [[k v] m] (.set_Item d k v)) d)
+              :cljr m
               :cljs m)]
     (reify
       Registry
-      (-schema [_ type] #?(:cljr (.get_Item fm type) :default (.get fm type)))
+      (-schema [_ type] #?(:cljr (clojure.core/get fm type) :default (.get fm type)))
       (-schemas [_] m))))
 
 (defn simple-registry [m]
